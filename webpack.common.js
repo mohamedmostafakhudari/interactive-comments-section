@@ -6,26 +6,23 @@ module.exports = {
 	entry: path.join(__dirname, "src", "index.js"),
 	output: {
 		path: path.resolve(__dirname, "dist"),
+		clean: true,
 	},
-	devServer: {
-		static: {
-			directory: path.join(__dirname, "src"),
-		},
-	},
-	devtool: "inline-source-map",
 	resolve: {
-		extensions: [".*", ".js", ".jsx"],
+		modules: [path.resolve(__dirname, "src"), "node_modules"],
+		extensions: [".js", ".jsx", ".wasm", ".ts", ".tsx", ".mjs", ".cjs", ".json"],
 	},
 	module: {
 		rules: [
 			{
-				test: /\.(js|jsx)?$/,
+				test: /\.(js|jsx)$/,
+				include: path.resolve(__dirname, "src"),
 				exclude: /node_modules/,
 				use: {
 					loader: "babel-loader",
 					options: {
 						presets: [
-							"@babel/preset-env",
+							["@babel/preset-env", { modules: false }],
 							[
 								"@babel/preset-react",
 								{
@@ -33,6 +30,7 @@ module.exports = {
 								},
 							],
 						],
+						plugins: ["@babel/plugin-transform-runtime", "@babel/plugin-proposal-class-properties", "@babel/plugin-syntax-dynamic-import"],
 					},
 				},
 			},
@@ -52,7 +50,7 @@ module.exports = {
 				],
 			},
 			{
-				test: /\.(png|jp(e*)g|svg|gif)$/,
+				test: /\.(png|jp(e*)g|gif)$/,
 				type: "asset/resource",
 			},
 			{
@@ -61,9 +59,13 @@ module.exports = {
 			},
 		],
 	},
+	optimization: {
+		runtimeChunk: "single",
+	},
 	plugins: [
 		new HtmlWebpackPlugin({
 			template: path.join(__dirname, "src", "index.html"),
+			inject: true,
 		}),
 		new CopyWebpackPlugin({
 			patterns: [
