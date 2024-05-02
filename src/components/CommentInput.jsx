@@ -1,16 +1,18 @@
 import { useState, useRef } from "react";
 
+
+import { useCurrentUser } from "../contexts/CurrentUserProvider";
 import { useComments } from "../contexts/CommentsProvider";
 
 import ProfileImage from "./ProfileImage";
 import Button from "./Button";
 import TextArea from "./TextArea";
 
-export default function CommentInput({ currentUser }) {
+export default function CommentInput() {
 
 	const inputRef = useRef(null);
-	console.log(inputRef);
-	const { refetch } = useComments();
+	const currentUser = useCurrentUser();
+	const { handleAddComment } = useComments();
 	function handleChange(e) {
 		e.target.style.height = 'auto';
 		e.target.style.height = e.target.scrollHeight + 'px';
@@ -19,20 +21,8 @@ export default function CommentInput({ currentUser }) {
 	function handleSubmit(e) {
 		e.preventDefault();
 		if (!inputRef.current) return;
-		const newComment = {
-			id: crypto.randomUUID(),
-			content: inputRef.current.value,
-			createdAt: new Date(Date.now()).toString(),
-			score: 1,
-			user: {
-				...currentUser,
-			},
-			replies: [],
-		}
-		addNewComment(newComment).then(res => {
-			inputRef.current.value = "";
-			refetch();
-		})
+		handleAddComment({ user: currentUser, content: inputRef.current.value});
+		inputRef.current.value = "";
 	}
 	return (
     <form onSubmit={handleSubmit} className="p-4 bg-white rounded-md mt-4 space-y-4">
@@ -44,16 +34,16 @@ export default function CommentInput({ currentUser }) {
 		</form>
   )
 }
-async function addNewComment(newComment) {
-	try {
-		const response = await fetch(`http://localhost:3000/comments`, {
-			method: "POST",
-			headers: {
-				"Content-Type": "application/json",
-			},
-			body: JSON.stringify(newComment),
-		});
-	} catch(err) {
-		console.log(err);
-	}
-}
+// async function addNewComment(newComment) {
+// 	try {
+// 		const response = await fetch(`http://localhost:3000/comments`, {
+// 			method: "POST",
+// 			headers: {
+// 				"Content-Type": "application/json",
+// 			},
+// 			body: JSON.stringify(newComment),
+// 		});
+// 	} catch(err) {
+// 		console.log(err);
+// 	}
+// }

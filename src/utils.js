@@ -9,7 +9,6 @@ export function formatDate(date) {
     year: 1000 * 60 * 60 * 24 * 30 * 12,
   }
   let diff = Date.now() - new Date(date);
-  console.log(diff);
   let seconds = 0;
   let minutes = 0;
   let hours = 0;

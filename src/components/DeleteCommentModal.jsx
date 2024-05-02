@@ -9,8 +9,8 @@ export default function DeleteCommentModal({ isOpen, setOpenModal, onDeleteComme
   }
   function handleSubmit(e) {
     e.preventDefault();
-    const { commentId, replyId } = e.target.dataset; 
-    onDeleteComment({ commentId, replyId });
+    const { id, parentCommentId } = e.target.dataset;
+    onDeleteComment({ id, parentCommentId });
     setOpenModal(false);
   }
   return createPortal(

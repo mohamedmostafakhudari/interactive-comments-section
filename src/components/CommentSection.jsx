@@ -1,6 +1,6 @@
 import { useState, useRef } from "react";
-import useFetch from "../hooks/useFetch";
 
+import { useCurrentUser } from "../contexts/CurrentUserProvider";
 import { useComments } from "../contexts/CommentsProvider";
 
 import ProfileImage from "./ProfileImage";
@@ -10,9 +10,9 @@ import Plus from "../assets/images/icon-plus.svg";
 import Minus from "../assets/images/icon-minus.svg";
 import TextArea from "./TextArea";
 import { formatDate } from "../utils";
-export default function CommentSection({ currentUser }) {
-	// const { data: comments, error, loading } = useFetch("http://localhost:3000/comments");
-	const { comments, refetch } = useComments();
+export default function CommentSection() {
+	const currentUser = useCurrentUser();
+	const { comments, handleRemove } = useComments();
 	const [openModal, setOpenModal] = useState(false);
 	if (!comments) {
 		return (
@@ -30,38 +30,26 @@ export default function CommentSection({ currentUser }) {
 				parentCommentId={null}
 				currentUser={currentUser}
 				setOpenModal={setOpenModal}
-				refetch={refetch}
 			/>
 		);
 	});
 
-	function handleDeleteComment({ commentId, replyId }) {
-		console.log(commentId, replyId);
-		if (replyId) {
-			deleteReply(commentId, replyId).then(res => {
-				refetch();
-			});
-		} else {
-			deleteComment(commentId).then(res => {
-				refetch();
-			});
-		}		
-	}
-
 	return (
 		<article>
 			<ul className="space-y-6">{list}</ul>
-			<DeleteCommentModal isOpen={openModal} setOpenModal={setOpenModal} onDeleteComment={handleDeleteComment}/>
+			<DeleteCommentModal isOpen={openModal} setOpenModal={setOpenModal} onDeleteComment={({ id, parentCommentId }) => handleRemove({ id, parentCommentId})}/>
 		</article>
 	);
 }
 
-const Comment = ({ comment, parentCommentId, currentUser, setOpenModal, refetch }) => {
+const Comment = ({ comment, parentCommentId, currentUser, setOpenModal }) => {
 	// available modes ( read || reply || edit )
 	const [mode, setMode] = useState("read");
 
+	const { handleReply, handleEdit, handleIncrementScore, handleDecrementScore } = useComments();
+
 	const isCurrentUser = comment.user.username === currentUser.username;
-	const isReply = comment.hasOwnProperty("replyingTo");
+	const isReply = parentCommentId !== null;
 	const replies = comment?.replies?.map((reply) => (
 		<Comment
 			key={reply.id}
@@ -69,26 +57,20 @@ const Comment = ({ comment, parentCommentId, currentUser, setOpenModal, refetch 
 			parentCommentId={comment.id}
 			currentUser={currentUser}
 			setOpenModal={setOpenModal}
-			refetch={refetch}
 		/>
 	));
 
 	function handleOpenDeleteModal(e) {
 		const deleteModal = document.querySelector("#deleteModal");
 		
-		deleteModal.dataset.commentId = "";
-		deleteModal.dataset.replyId = "";
+		deleteModal.dataset.parentCommentId = "";
+		deleteModal.dataset.id = "";
 
-		if (isReply) {
-			deleteModal.dataset.commentId = parentCommentId;
-			deleteModal.dataset.replyId = comment.id;
-		} else {
-			deleteModal.dataset.commentId = comment.id;
-			deleteModal.dataset.replyId = "";
-		}
+		deleteModal.dataset.parentCommentId = parentCommentId ? parentCommentId : "";
+		deleteModal.dataset.id = comment.id;
 		setOpenModal(true);
 	}
-	function handleEdit(updatedComment) {
+	function onEdit(updatedComment) {
 		
 		let updates;
 
@@ -101,75 +83,33 @@ const Comment = ({ comment, parentCommentId, currentUser, setOpenModal, refetch 
 				content,
 				replyingTo
 			}
-
-			updateReply(updates, parentCommentId, comment.id).then(res => {
-				refetch();
-				setMode("read");
-			});
 		} else {
 			updates = {
 				content: updatedComment,
 			}
-			updateComment(updates, comment.id).then(res => {
-				refetch();
-				setMode("read");
-			});
 		}
+		handleEdit({ id: comment.id, parentCommentId, updates })
+		setMode("read");
 	}
-	function handleIncrementScore() {
-		if (parentCommentId) {
-			updateReply(
-				{ score: comment.score + 1 },
-				 parentCommentId,
-				 comment.id
-			).then(res => {
-				refetch();
-			})
-		} else {
-			updateComment(
-				{ score: comment.score + 1 },
-				comment.id
-			).then(res => {
-				refetch();
-			})
-		}
-	}
-	function handleDecrementScore() {
-		if (parentCommentId) {
-			updateReply(
-				{ score: comment.score - 1 },
-				 parentCommentId,
-				 comment.id
-			).then(res => {
-				refetch();
-			})
-		} else {
-			updateComment(
-				{ score: comment.score - 1 },
-				comment.id
-			).then(res => {
-				refetch();
-			})
-		}
-	}
+
 	return (
 		<li className="">
 			<div className="relative z-10 bg-white space-y-4 text-slate-500 p-4 rounded-md">
 				<div className="flex flex-col md:flex-row md:gap-6 md:items-start">
-					<Score score={comment.score} className="hidden md:flex shrink-0" onIncrementScore={handleIncrementScore} onDecrementScore={handleDecrementScore} />
+					<Score score={comment.score} className="hidden md:flex shrink-0" onIncrementScore={() => handleIncrementScore({ id: comment.id, parentCommentId, updates: { score : comment.score + 1}})} onDecrementScore={() => handleDecrementScore({ id: comment.id, parentCommentId, updates: { score : comment.score - 1}})} />
 					<div className="space-y-4 flex-1">
 						<CommentHeader imgSrc={comment.user.image.png} username={comment.user.username} createdAt={comment.createdAt} isCurrentUser={isCurrentUser} mode={mode} setMode={setMode} onOpenDeleteModal={handleOpenDeleteModal} />
 						{mode === "edit" && isCurrentUser ? (
-							<EditBox content={comment.content} isReply={isReply} replyingTo={comment.replyingTo} onEdit={handleEdit}/>
+							<EditBox content={comment.content} isReply={isReply} replyingTo={comment.replyingTo} onEdit={onEdit}/>
 						): (
-							<CommentContent content={comment.content} replyingTo={comment.replyingTo} isReply={isReply} isCurrentUser={isCurrentUser} mode={mode}/>
+							<CommentContent content={comment.content} replyingTo={comment.replyingTo} isReply={isReply} />
 						)}
 					</div>
 				</div>
-				<CommentFooter score={comment.score} isCurrentUser={isCurrentUser} mode={mode} setMode={setMode} className="md:hidden" onOpenDeleteModal={handleOpenDeleteModal} onIncrementScore={handleIncrementScore} onDecrementScore={handleDecrementScore} />
+				<CommentFooter score={comment.score} isCurrentUser={isCurrentUser} mode={mode} setMode={setMode} className="md:hidden" onOpenDeleteModal={handleOpenDeleteModal} onIncrementScore={() => handleIncrementScore({ id: comment.id, parentCommentId, updates: { score : comment.score + 1}})} onDecrementScore={() => handleDecrementScore({ id: comment.id, parentCommentId, updates: { score : comment.score - 1}})} />
 			</div>
 			
-			{!isCurrentUser && <ReplyBox comment={comment} currentUser={currentUser} mode={mode} setMode={setMode} refetch={refetch} />}
+			{!isCurrentUser && <ReplyBox comment={comment} currentUser={currentUser} mode={mode} setMode={setMode} onReply={({ replyingTo, content }) => handleReply({ id: comment.id, parentCommentId, replyingTo, content, user: currentUser})} />}
 			{!isReply && (
 				<div className="border-l border-slate-300">
 					<ul className="mt-4 ml-4 space-y-4">{replies}</ul>
@@ -179,7 +119,7 @@ const Comment = ({ comment, parentCommentId, currentUser, setOpenModal, refetch 
 	);
 };
 
-function CommentHeader({ imgSrc, username, createdAt, isCurrentUser, mode, setMode, onOpenDeleteModal, onEdit }) {
+function CommentHeader({ imgSrc, username, createdAt, isCurrentUser, mode, setMode, onOpenDeleteModal }) {
 	const date = formatDate(createdAt);
 	return (
 		<div className="flex items-center justify-between">
@@ -205,7 +145,7 @@ function CommentHeader({ imgSrc, username, createdAt, isCurrentUser, mode, setMo
 	)
 }
 
-function CommentContent({ content, replyingTo, isReply, isCurrentUser, mode }) {
+function CommentContent({ content, replyingTo, isReply }) {
 	return (
 		<div className="relative">
 			<p>
@@ -236,7 +176,7 @@ function CommentFooter({ score, isCurrentUser, mode, setMode, onOpenDeleteModal,
 		</div>
 	)
 }
-function ReplyBox({ comment, currentUser, mode, setMode, refetch }) {
+function ReplyBox({ comment, currentUser, mode, onReply}) {
 	const [reply, setReply] = useState(`@${comment.user.username}, `);
 
 	const slideDownStyling = "max-h-[300px] py-4 opacity-100";
@@ -248,34 +188,7 @@ function ReplyBox({ comment, currentUser, mode, setMode, refetch }) {
 		const replyingTo =  matchFound ? matchFound[1] : comment.user.username;
 		const replyContent = matchFound ? reply.slice(reply.indexOf(" ") + 1) : reply;
 
-		const newReply = {
-			id: crypto.randomUUID(),
-			content: replyContent,
-			createdAt: new Date(Date.now()).toString(),
-			score: 0,
-			replyingTo: replyingTo,
-			user: {
-				...currentUser,
-			}
-		};
-		const newComment = {
-			...comment,
-			replies: [
-				...comment.replies,
-				newReply,
-			],
-		};
-
-		fetch(`http://localhost:3000/comments/${comment.id}`, {
-			method: 'PUT',
-			headers: {
-				'Content-Type': 'application/json',
-			},
-			body: JSON.stringify(newComment),
-		}).then((res) => {
-			setReply(`@${comment.user.username}, `);
-			refetch();
-		})
+		onReply({ replyingTo, content: replyContent });
 	}
   return (
   <form onSubmit={handleSubmit} className={`bg-white flex flex-col gap-4 rounded-md px-4 mt-2 text-slate-700 duration-200 ease-in-out md:flex-row ${mode === 'reply' ? slideDownStyling : slideUpStyling }`}>
@@ -287,7 +200,7 @@ function ReplyBox({ comment, currentUser, mode, setMode, refetch }) {
 }
 
 function EditBox({ content, isReply, replyingTo, onEdit }) {
-	const [currentComment, setCurrentComment] = useState(`${isReply && `@${replyingTo}`} ${content}`);
+	const [currentComment, setCurrentComment] = useState(`${isReply ? `@${replyingTo}` : ""} ${content}`);
 
 	function handleSubmit(e) {
 		e.preventDefault();
@@ -317,93 +230,3 @@ const Score = ({ score, className, onIncrementScore, onDecrementScore }) => {
 		</div>
 	);
 };
-
-async function fetchComment(id) {
-	try {
-		const response = await fetch(`http://localhost:3000/comments/${id}`);
-		const data = await response.json();
-		return data;
-	} catch(err) {
-		console.log(err);
-	}
-
-}
-async function deleteComment(commentId) {
-	try {
-		const response = await fetch(`http://localhost:3000/comments/${commentId}`, {
-			method: "DELETE",
-		});
-	} catch (err) {
-		console.log(err);
-	}
-}
-async function deleteReply(commentId, replyId) {
-	try {
-		const comment = await fetchComment(commentId);
-
-		const newReplies = comment.replies.filter(reply => reply.id !== replyId);
-		const newComment = {
-			...comment,
-			replies: newReplies,
-		}
-
-		const response = await fetch(`http://localhost:3000/comments/${commentId}`, {
-			method: "PUT",
-			headers: {
-				"Content-Type": "application/json",
-			},
-			body: JSON.stringify(newComment),
-		});
-	} catch(err) {
-		console.log(err);
-	}
-}
-async function updateReply(updates, commentId, replyId) {
-	try {
-		const comment = await fetchComment(commentId);
-
-		const newReplies = comment.replies.map(reply => {
-			if (reply.id === replyId) {
-				return {
-					...reply,
-					...updates
-				};
-			} else {
-				return reply;
-			}
-		});
-
-		const newComment = {
-			...comment,
-			replies: newReplies,
-		};
-
-		const response = await fetch(`http://localhost:3000/comments/${commentId}`, {
-			method: "PUT",
-			headers: {
-				"Content-Type": "application/json",
-			},
-			body: JSON.stringify(newComment)
-		});
-	} catch (err) {
-		console.log(err);
-	}
-}
-async function updateComment(updates, commentId) {
-	try {
-		const comment = await fetchComment(commentId);
-
-		const newComment = {
-			...comment,
-			...updates
-		};
-
-		const response = await fetch(`http://localhost:3000/comments/${commentId}`, {
-			method: "PUT",
-			"Content-Type": "application/json",
-			body: JSON.stringify(newComment),
-		});
-	} catch(err) {
-		console.log(err);
-	}
-}
