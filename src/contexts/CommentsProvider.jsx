@@ -21,15 +21,7 @@ const reducer = (state, action) => {
       ];
     case "remove":
       if (action.payload.parentCommentId) {
-        // another implementation but later when add sorting functionality
-        // const comment = state.find(comment => comment.id === action.payload.parentCommentId);
-        // return [
-        //   ...state,
-        //   {
-        //     ...comment,
-        //     replies: comment.replies.filter(reply => reply.id !== action.payload.id)
-        //   }
-        // ];
+
         const comments = state.map(comment => {
           if (comment.id === action.payload.parentCommentId) {
             return {

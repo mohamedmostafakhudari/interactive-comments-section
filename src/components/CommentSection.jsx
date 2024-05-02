@@ -11,9 +11,12 @@ import Minus from "../assets/images/icon-minus.svg";
 import TextArea from "./TextArea";
 import { formatDate } from "../utils";
 export default function CommentSection() {
+	const [openModal, setOpenModal] = useState(false);
+
 	const currentUser = useCurrentUser();
 	const { comments, handleRemove } = useComments();
-	const [openModal, setOpenModal] = useState(false);
+
+
 	if (!comments) {
 		return (
 			<article>
@@ -22,7 +25,14 @@ export default function CommentSection() {
 		);
 	}
 
-	const list = comments.map((comment) => {
+	const sortedComments = comments.sort((a,b) => {
+		if (new Date(a.createdAt) > new Date(b.createdAt)) {
+			return 1;
+		} else {
+			return -1;
+		}
+	})
+	const list = sortedComments.map((comment) => {
 		return (
 			<Comment
 				key={comment.id}
@@ -50,7 +60,15 @@ const Comment = ({ comment, parentCommentId, currentUser, setOpenModal }) => {
 
 	const isCurrentUser = comment.user.username === currentUser.username;
 	const isReply = parentCommentId !== null;
-	const replies = comment?.replies?.map((reply) => (
+
+	const sortedReplies = comment?.replies?.sort((a,b) => {
+		if (new Date(a.createdAt) > new Date(b.createdAt)) {
+			return 1;
+		} else {
+			return -1;
+		}
+	});
+	const replies = sortedReplies?.map((reply) => (
 		<Comment
 			key={reply.id}
 			comment={reply}
