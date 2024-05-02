@@ -16,7 +16,7 @@ export default function DeleteCommentModal({ isOpen, setOpenModal, onDeleteComme
   return createPortal(
     <div className={`fixed z-10 inset-0 bg-black/50 ${isOpen ? "block" : "hidden"}`}>
       <div className="container mx-auto px-4 grid place-items-center min-h-full">
-        <form id="deleteModal" onSubmit={handleSubmit} className="bg-white p-6 rounded-md space-y-4">
+        <form id="deleteModal" onSubmit={handleSubmit} className="bg-white p-6 rounded-md space-y-4 max-w-[350px]">
           <h3 className="text-xl font-bold text-slate-700">Delete comment</h3>
           <p className="text-slate-500">Are you sure you want to delete this comment? This will remove the comment and can't be undone.</p>
           <div className="flex items-center justify-center gap-3">
